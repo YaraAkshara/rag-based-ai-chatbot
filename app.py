@@ -5,17 +5,16 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from transformers import pipeline
 
-# ===== PAGE SETTINGS =====
+# ===== PAGE =====
 st.set_page_config(page_title="RAG Chatbot", layout="wide")
 st.title("🤖 RAG-Based AI Chatbot")
 st.write("Upload a PDF and ask questions!")
 
 # ===== FILE UPLOAD =====
-uploaded_file = st.file_uploader("📄 Upload your PDF", type="pdf")
+uploaded_file = st.file_uploader("📄 Upload PDF", type="pdf")
 
-if uploaded_file is not None:
+if uploaded_file:
 
-    # Save file temporarily
     with open("temp.pdf", "wb") as f:
         f.write(uploaded_file.read())
 
@@ -40,10 +39,10 @@ if uploaded_file is not None:
 
     st.success("✅ PDF processed successfully!")
 
-    # ===== LOAD MODEL =====
-    generator = pipeline(
-        "text-generation",
-        model="gpt2"
+    # ===== LOAD QA MODEL (IMPORTANT CHANGE) =====
+    qa_pipeline = pipeline(
+        "question-answering",
+        model="distilbert-base-cased-distilled-squad"
     )
 
     # ===== USER INPUT =====
@@ -51,36 +50,19 @@ if uploaded_file is not None:
 
     if query:
 
-        # Retrieve relevant chunks
+        # Retrieve context
         results = vectorstore.similarity_search(query, k=3)
         context = " ".join([doc.page_content for doc in results])
 
-        # ===== BETTER PROMPT =====
-        prompt = f"""
-You are an intelligent assistant.
+        # ===== GET ANSWER =====
+        result = qa_pipeline(
+            question=query,
+            context=context
+        )
 
-Answer the question clearly and briefly in 2-3 sentences.
-
-Context:
-{context}
-
-Question: {query}
-
-Answer:
-"""
-
-        # ===== GENERATE ANSWER =====
-        output = generator(
-            prompt,
-            max_new_tokens=60,
-            do_sample=True,
-            temperature=0.3
-        )[0]["generated_text"]
-
-        # ===== CLEAN OUTPUT =====
-        if "Answer:" in output:
-            output = output.split("Answer:")[-1].strip()
+        answer = result["answer"]
 
         # ===== DISPLAY =====
         st.subheader("🤖 Answer")
-        st.write(output)
+        st.write(answer)
+    
