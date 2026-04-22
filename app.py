@@ -41,10 +41,10 @@ if uploaded_file:
 
     # ===== LOAD QA MODEL (IMPORTANT CHANGE) =====
     qa_pipeline = pipeline(
-        "question-answering",
-        model="distilbert-base-cased-distilled-squad"
+    "question-answering",
+    model="distilbert-base-cased-distilled-squad",
+    tokenizer="distilbert-base-cased-distilled-squad"
     )
-
     # ===== USER INPUT =====
     query = st.text_input("💬 Ask a question:")
 
