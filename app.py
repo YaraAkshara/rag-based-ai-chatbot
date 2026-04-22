@@ -5,58 +5,82 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from transformers import pipeline
 
-# ===== UI =====
+# ===== PAGE SETTINGS =====
 st.set_page_config(page_title="RAG Chatbot", layout="wide")
-st.title("🤖 RAG-based AI Chatbot")
+st.title("🤖 RAG-Based AI Chatbot")
 st.write("Upload a PDF and ask questions!")
 
-# ===== Upload PDF =====
-uploaded_file = st.file_uploader("Upload PDF", type="pdf")
+# ===== FILE UPLOAD =====
+uploaded_file = st.file_uploader("📄 Upload your PDF", type="pdf")
 
 if uploaded_file is not None:
+
+    # Save file temporarily
     with open("temp.pdf", "wb") as f:
         f.write(uploaded_file.read())
 
-    # ===== Load PDF =====
+    # ===== LOAD PDF =====
     loader = PyPDFLoader("temp.pdf")
     documents = loader.load()
 
-    # ===== Split Text =====
-    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    # ===== SPLIT TEXT =====
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50
+    )
     docs = splitter.split_documents(documents)
 
-    # ===== Embeddings =====
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # ===== EMBEDDINGS =====
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
 
-    # ===== Vector Store =====
+    # ===== VECTOR STORE =====
     vectorstore = FAISS.from_documents(docs, embeddings)
 
     st.success("✅ PDF processed successfully!")
 
-    # ===== Load Model =====
-    generator = pipeline("text-generation", model="distilgpt2")
+    # ===== LOAD MODEL =====
+    generator = pipeline(
+        "text-generation",
+        model="gpt2"
+    )
 
-    # ===== User Input =====
-    query = st.text_input("Ask a question:")
+    # ===== USER INPUT =====
+    query = st.text_input("💬 Ask a question:")
 
     if query:
-        # Retrieve relevant docs
+
+        # Retrieve relevant chunks
         results = vectorstore.similarity_search(query, k=3)
         context = " ".join([doc.page_content for doc in results])
 
-        # Prompt
+        # ===== BETTER PROMPT =====
         prompt = f"""
-        Answer the question based on context.
+You are an intelligent assistant.
 
-        Context:
-        {context}
+Answer the question clearly and briefly in 2-3 sentences.
 
-        Question: {query}
-        Answer:
-        """
+Context:
+{context}
 
-        # Generate answer
-        output = generator(prompt, max_new_tokens=100)[0]["generated_text"]
+Question: {query}
 
+Answer:
+"""
+
+        # ===== GENERATE ANSWER =====
+        output = generator(
+            prompt,
+            max_new_tokens=60,
+            do_sample=True,
+            temperature=0.3
+        )[0]["generated_text"]
+
+        # ===== CLEAN OUTPUT =====
+        if "Answer:" in output:
+            output = output.split("Answer:")[-1].strip()
+
+        # ===== DISPLAY =====
         st.subheader("🤖 Answer")
         st.write(output)
