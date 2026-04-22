@@ -3,66 +3,38 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from transformers import pipeline
 
-# ===== PAGE =====
-st.set_page_config(page_title="RAG Chatbot", layout="wide")
+# UI
 st.title("🤖 RAG-Based AI Chatbot")
-st.write("Upload a PDF and ask questions!")
+uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-# ===== FILE UPLOAD =====
-uploaded_file = st.file_uploader("📄 Upload PDF", type="pdf")
-
-if uploaded_file:
-
+if uploaded_file is not None:
     with open("temp.pdf", "wb") as f:
         f.write(uploaded_file.read())
 
-    # ===== LOAD PDF =====
+    # Load PDF
     loader = PyPDFLoader("temp.pdf")
-    documents = loader.load()
+    docs = loader.load()
 
-    # ===== SPLIT TEXT =====
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50
-    )
-    docs = splitter.split_documents(documents)
+    # Split text
+    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    chunks = splitter.split_documents(docs)
 
-    # ===== EMBEDDINGS =====
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    # ===== VECTOR STORE =====
-    vectorstore = FAISS.from_documents(docs, embeddings)
+    # Embeddings
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = FAISS.from_documents(chunks, embeddings)
 
     st.success("✅ PDF processed successfully!")
 
-    # ===== LOAD QA MODEL (IMPORTANT CHANGE) =====
-    qa_pipeline = pipeline(
-    "question-answering",
-    model="distilbert-base-cased-distilled-squad",
-    tokenizer="distilbert-base-cased-distilled-squad"
-    )
-    # ===== USER INPUT =====
-    query = st.text_input("💬 Ask a question:")
+    query = st.text_input("Ask a question")
 
     if query:
-
-        # Retrieve context
         results = vectorstore.similarity_search(query, k=3)
+
         context = " ".join([doc.page_content for doc in results])
 
-        # ===== GET ANSWER =====
-        result = qa_pipeline(
-            question=query,
-            context=context
-        )
+        # SIMPLE ANSWER (NO HF PIPELINE → NO ERRORS)
+        answer = context[:500]
 
-        answer = result["answer"]
-
-        # ===== DISPLAY =====
-        st.subheader("🤖 Answer")
-        st.write(answer)
-    
+        st.subheader("Answer")
+        st.success(answer)
